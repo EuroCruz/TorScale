@@ -17,6 +17,9 @@ The network topology will look roughly like this:
   +---------+
 ```
 
+TorScale is a fork of [TailGuard](https://github.com/juhovh/tailguard), with the
+WireGuard tunnel replaced by Tor.
+
 Your devices talk to TorScale over the usual encrypted WireGuard tunnel of
 Tailscale. TorScale hands every TCP connection and DNS query to Tor and drops
 everything else, so nothing ever leaves the container outside of Tor.
