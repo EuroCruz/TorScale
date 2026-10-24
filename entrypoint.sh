@@ -149,7 +149,7 @@ start_tailscale() {
         --netfilter-mode=off \
         --accept-dns=false \
         --accept-routes=false
-    [ -n "$TS_AUTHKEY" ] && set -- "$@" --authkey="$TS_AUTHKEY"
+    [ -n "$TS_AUTHKEY" ] && set -- "$@" --auth-key="$TS_AUTHKEY"
     [ -n "$TS_LOGIN_SERVER" ] && set -- "$@" --login-server="$TS_LOGIN_SERVER"
 
     # shellcheck disable=SC2086
