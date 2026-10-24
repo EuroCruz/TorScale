@@ -35,7 +35,7 @@ fi
 # --- torrc -------------------------------------------------------------------
 
 write_torrc() {
-    # IPv6Traffic also makes DNSPort answer AAAA queries
+    # Lets DNSPort answer AAAA queries
     V6_TRAFFIC=""
     [ "$IPV6" = 1 ] && V6_TRAFFIC=IPv6Traffic
 
@@ -47,13 +47,13 @@ Log notice stdout
 Log notice file $TOR_LOG
 
 # Transparent proxy for traffic coming in from the tailnet
-TransPort 0.0.0.0:$TOR_TRANS_PORT IsolateClientAddr IsolateDestAddr $V6_TRAFFIC
+TransPort 0.0.0.0:$TOR_TRANS_PORT IsolateClientAddr IsolateDestAddr
 DNSPort 0.0.0.0:$TOR_DNS_PORT $V6_TRAFFIC
 SocksPort 0
 EOF
     if [ "$IPV6" = 1 ]; then
         cat >> "$TORRC" <<EOF
-TransPort [::]:$TOR_TRANS_PORT IsolateClientAddr IsolateDestAddr IPv6Traffic
+TransPort [::]:$TOR_TRANS_PORT IsolateClientAddr IsolateDestAddr
 DNSPort [::]:$TOR_DNS_PORT IPv6Traffic
 EOF
     fi

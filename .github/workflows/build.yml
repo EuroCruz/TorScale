@@ -80,10 +80,16 @@ jobs:
 
       - name: Verify generated torrc
         run: |
-          docker run --rm -e TOR_ExitNodes='{de},{nl}' -e TOR_StrictNodes=1 \
-            torscale:test verify-config
-          docker run --rm --sysctl net.ipv6.conf.all.disable_ipv6=0 \
-            torscale:test verify-config
+          set -o pipefail
+          for v6 in 0 1; do
+            docker run --rm --sysctl net.ipv6.conf.all.disable_ipv6=$((1 - v6)) \
+              -e TOR_ExitNodes='{de},{nl}' -e TOR_StrictNodes=1 \
+              torscale:test verify-config | tee torrc.log
+            if grep -q 'Unrecognized' torrc.log; then
+              echo "::error::Unrecognized torrc option"
+              exit 1
+            fi
+          done
 
       - name: Push Docker image
         uses: docker/build-push-action@v7
