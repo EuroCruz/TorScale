@@ -1,0 +1,66 @@
+name: Track Tailscale releases
+
+on:
+  schedule:
+    # check for a new Tailscale release every day
+    - cron: "17 5 * * *"
+    # rebuild weekly to pick up Alpine/Tor security updates
+    - cron: "47 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Rebuild and republish even if Tailscale is up to date
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      ref: ${{ steps.check.outputs.ref }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare with the latest Tailscale release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEEKLY: ${{ github.event.schedule == '47 5 * * 1' || inputs.rebuild }}
+        run: |
+          latest="$(gh api repos/tailscale/tailscale/releases/latest --jq .tag_name)"
+          current="$(sed -n 's/^ARG TS_VERSION="\(.*\)"$/\1/p' Dockerfile)"
+          echo "current=$current latest=$latest"
+
+          newest="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1)"
+          if [ "$latest" != "$current" ] && [ "$newest" = "$latest" ]; then
+            sed -i "s/^ARG TS_VERSION=\".*\"$/ARG TS_VERSION=\"$latest\"/" Dockerfile
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Upgrade Tailscale to $latest"
+            git tag "$latest"
+            git push origin HEAD:main "$latest"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "ref=$latest" >> "$GITHUB_OUTPUT"
+            echo "version=$latest" >> "$GITHUB_OUTPUT"
+          elif [ "$WEEKLY" = true ]; then
+            # refresh :latest from main, no new release
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.check.outputs.ref }}
+      version: ${{ needs.check.outputs.version }}
+    secrets: inherit

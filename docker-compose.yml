@@ -1,0 +1,22 @@
+services:
+  torscale:
+    image: ghcr.io/eurocruz/torscale:latest
+    build: .
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:-}
+      - TS_HOSTNAME=torscale
+      # - TOR_ExitNodes={de},{nl},{ch}
+      # - TOR_StrictNodes=1
+    volumes:
+      - ./state/tailscale:/var/lib/tailscale
+      - ./state/tor:/var/lib/tor
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    ports:
+      - "41641:41641/udp"
+    restart: unless-stopped
