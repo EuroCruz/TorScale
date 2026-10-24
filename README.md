@@ -136,7 +136,7 @@ rules depend on them.
 `.github/workflows/update.yml` checks for a new Tailscale release every day.
 When one is out, it bumps `TS_VERSION` in the Dockerfile, tags the commit with
 the same version, publishes `ghcr.io/eurocruz/torscale:<version>` and `:latest`
-for `amd64`, `arm64` and `arm/v7`, and creates a GitHub release. The image is
+for `amd64`, and creates a GitHub release. The image is
 also rebuilt weekly to pick up Alpine and Tor security updates.
 
 To update a running container, pull the new image and recreate it, or let
