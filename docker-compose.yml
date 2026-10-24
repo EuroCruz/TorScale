@@ -5,7 +5,6 @@ services:
     environment:
       - TS_AUTHKEY=${TS_AUTHKEY:-}
       - TS_HOSTNAME=torscale
-      # - TS_PUBLIC_ENDPOINT=203.0.113.10:41641
       # - TOR_ExitNodes={de},{nl},{ch}
       # - TOR_StrictNodes=1
     volumes:
