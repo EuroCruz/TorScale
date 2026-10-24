@@ -72,6 +72,7 @@ Supported configuration parameters through environment:
 - `TS_HOSTNAME` - Tailscale hostname for this device (**default:** torscale)
 - `TS_LOGIN_SERVER` - URL of the control server if not using Tailscale default (e.g. Headscale)
 - `TS_PORT` - Tailscale UDP port, should be exposed by Docker (**default:** 41641)
+- `TS_PUBLIC_ENDPOINT` - Public `ip:port` (comma-separated list) to advertise to peers, see below
 - `TS_DEVICE` - Tailscale TUN device name (**default:** tailscale0)
 - `TS_EXTRA_ARGS` - Any additional `tailscale up` flags, e.g. `--advertise-tags=tag:torscale`
 - `TOR_<Option>` - Any [torrc option](https://2019.www.torproject.org/docs/tor-manual.html.en), see below
@@ -80,6 +81,24 @@ Supported configuration parameters through environment:
 
 The `TS_*` parameters follow the naming of the official Tailscale Docker image
 [parameters](https://tailscale.com/kb/1282/docker) where possible.
+
+### Direct connections
+
+Inside Docker, `tailscaled` sits behind NAT and may not learn its public address,
+especially when the control server or DERP runs on the same host (STUN then
+reports a Docker address like `172.x.x.x`). Peers can then only reach TorScale
+through DERP. To allow direct connections, publish the UDP port and advertise
+it explicitly:
+
+```
+    environment:
+      - TS_PORT=41641
+      - TS_PUBLIC_ENDPOINT=203.0.113.10:41641
+    ports:
+      - "41641:41641/udp"
+```
+
+`TS_PORT`, the published port and the port in `TS_PUBLIC_ENDPOINT` must match.
 
 ### Tor options
 

@@ -7,6 +7,7 @@ TS_AUTHKEY="${TS_AUTHKEY:-}"
 TS_LOGIN_SERVER="${TS_LOGIN_SERVER:-}"
 TS_EXTRA_ARGS="${TS_EXTRA_ARGS:-}"
 TS_PORT="${TS_PORT:-41641}"
+TS_PUBLIC_ENDPOINT="${TS_PUBLIC_ENDPOINT:-}"
 TS_IF="${TS_DEVICE:-tailscale0}"
 TS_STATE_DIR=/var/lib/tailscale
 TS_SOCKET=/var/run/tailscale/tailscaled.sock
@@ -75,9 +76,9 @@ EOF
 
 start_tor() {
     mkdir -p /var/lib/tor /var/log/tor
+    : > "$TOR_LOG"
     chown -R tor:tor /var/lib/tor /var/log/tor
     chmod 700 /var/lib/tor
-    : > "$TOR_LOG"
 
     log "torrc:"
     sed -e 's/^/    /' "$TORRC"
@@ -130,6 +131,12 @@ setup_firewall() {
 
 start_tailscale() {
     mkdir -p "$TS_STATE_DIR" "$(dirname "$TS_SOCKET")"
+
+    # Behind Docker NAT tailscaled can't learn its public address, advertise it
+    # explicitly so peers can connect directly.
+    if [ -n "$TS_PUBLIC_ENDPOINT" ]; then
+        export TS_DEBUG_PRETENDPOINT="$TS_PUBLIC_ENDPOINT"
+    fi
 
     tailscaled --state="$TS_STATE_DIR/tailscaled.state" \
                --socket="$TS_SOCKET" \
