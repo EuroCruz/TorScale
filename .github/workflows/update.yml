@@ -1,15 +1,15 @@
-name: Track Tailscale releases
+name: Track upstream releases
 
 on:
   schedule:
-    # check for a new Tailscale release every day
-    - cron: "17 5 * * *"
-    # rebuild weekly to pick up Alpine/Tor security updates
+    # check for new Tailscale, Tor, Go and Alpine versions
+    - cron: "17 */6 * * *"
+    # rebuild weekly to pick up other Alpine security updates
     - cron: "47 5 * * 1"
   workflow_dispatch:
     inputs:
       rebuild:
-        description: Rebuild and republish even if Tailscale is up to date
+        description: Rebuild and republish even if everything is up to date
         type: boolean
         default: false
 
@@ -27,32 +27,82 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Compare with the latest Tailscale release
+      - name: Compare with the latest upstream versions
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WEEKLY: ${{ github.event.schedule == '47 5 * * 1' || inputs.rebuild }}
         run: |
-          latest="$(gh api repos/tailscale/tailscale/releases/latest --jq .tag_name)"
-          current="$(sed -n 's/^ARG TS_VERSION="\(.*\)"$/\1/p' Dockerfile)"
-          echo "current=$current latest=$latest"
+          newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n 1)" = "$2" ]; }
+          hub_tag() { curl -fs -o /dev/null "https://hub.docker.com/v2/repositories/library/$1/tags/$2"; }
+          changes=""
+          add_change() { changes="${changes:+$changes, }$1"; }
 
-          newest="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1)"
-          if [ "$latest" != "$current" ] && [ "$newest" = "$latest" ]; then
-            sed -i "s/^ARG TS_VERSION=\".*\"$/ARG TS_VERSION=\"$latest\"/" Dockerfile
+          # Alpine, staying on the current minor release
+          alpine_current="$(sed -n 's/^FROM alpine:\([0-9.]*\)$/\1/p' Dockerfile)"
+          alpine_minor="${alpine_current%.*}"
+          alpine_latest="$(curl -fsSL "https://hub.docker.com/v2/repositories/library/alpine/tags?name=$alpine_minor.&page_size=100" \
+            | grep -oE "\"name\":\"$alpine_minor\.[0-9]+\"" | cut -d'"' -f4 | sort -V | tail -n 1)"
+          echo "Alpine: $alpine_current -> $alpine_latest"
+          if [ -n "$alpine_latest" ] && newer "$alpine_current" "$alpine_latest"; then
+            sed -i "s/^FROM alpine:.*$/FROM alpine:$alpine_latest/" Dockerfile
+            add_change "Alpine to $alpine_latest"
+          fi
+
+          # Go builder image
+          go_current="$(sed -n 's/^FROM .*golang:\([0-9.]*\)-alpine.*/\1/p' Dockerfile)"
+          go_latest="$(curl -fsSL 'https://go.dev/VERSION?m=text' | head -n 1 | sed 's/^go//')"
+          echo "Go: $go_current -> $go_latest"
+          if newer "$go_current" "$go_latest" && hub_tag golang "$go_latest-alpine$alpine_minor"; then
+            sed -i "s/golang:$go_current-alpine/golang:$go_latest-alpine/" Dockerfile
+            add_change "Go to $go_latest"
+          fi
+
+          # Tailscale
+          ts_current="$(sed -n 's/^ARG TS_VERSION="\(.*\)"$/\1/p' Dockerfile)"
+          ts_latest="$(gh api repos/tailscale/tailscale/releases/latest --jq .tag_name)"
+          echo "Tailscale: $ts_current -> $ts_latest"
+          release=false
+          if newer "$ts_current" "$ts_latest"; then
+            sed -i "s/^ARG TS_VERSION=\".*\"$/ARG TS_VERSION=\"$ts_latest\"/" Dockerfile
+            add_change "Tailscale to $ts_latest"
+            release=true
+          else
+            ts_latest="$ts_current"
+          fi
+
+          # Tor from the Alpine package repository
+          tor_current="$(sed -n 's/^ARG TOR_VERSION="\(.*\)"$/\1/p' Dockerfile)"
+          tor_latest="$(curl -fsSL "https://dl-cdn.alpinelinux.org/alpine/v$alpine_minor/community/x86_64/APKINDEX.tar.gz" \
+            | tar -xzO APKINDEX | awk 'BEGIN{RS=""} /\nP:tor\n/' | sed -n 's/^V://p')"
+          echo "Tor: $tor_current -> $tor_latest"
+          if [ -n "$tor_latest" ] && [ "$tor_latest" != "$tor_current" ]; then
+            sed -i "s/^ARG TOR_VERSION=\".*\"$/ARG TOR_VERSION=\"$tor_latest\"/" Dockerfile
+            add_change "Tor to $tor_latest"
+            # A new package revision alone doesn't make a new release
+            [ "${tor_latest%-r*}" != "${tor_current%-r*}" ] && release=true
+          fi
+
+          if [ -n "$changes" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -am "Upgrade Tailscale to $latest"
-            git tag "$latest"
-            git push origin HEAD:main "$latest"
+            git commit -am "Upgrade $changes"
+            git push origin HEAD:main
+          fi
+
+          if [ "$release" = true ]; then
+            tag="${ts_latest}-tor${tor_latest%-r*}"
+            git tag "$tag"
+            git push origin "$tag"
             echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "ref=$latest" >> "$GITHUB_OUTPUT"
-            echo "version=$latest" >> "$GITHUB_OUTPUT"
-          elif [ "$WEEKLY" = true ]; then
+            echo "ref=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=$tag" >> "$GITHUB_OUTPUT"
+          elif [ -n "$changes" ] || [ "$WEEKLY" = true ]; then
             # refresh :latest from main, no new release
             echo "build=true" >> "$GITHUB_OUTPUT"
             echo "ref=main" >> "$GITHUB_OUTPUT"
           else
+            echo "Everything is up to date"
             echo "build=false" >> "$GITHUB_OUTPUT"
           fi
 

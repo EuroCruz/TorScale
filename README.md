@@ -133,11 +133,13 @@ rules depend on them.
 
 ### Updates
 
-`.github/workflows/update.yml` checks for a new Tailscale release every day.
-When one is out, it bumps `TS_VERSION` in the Dockerfile, tags the commit with
-the same version, publishes `ghcr.io/eurocruz/torscale:<version>` and `:latest`
-for `amd64`, and creates a GitHub release. The image is
-also rebuilt weekly to pick up Alpine and Tor security updates.
+`.github/workflows/update.yml` checks every six hours for new versions of
+Tailscale, Tor (from the Alpine repository), Go and Alpine, and commits the
+bumps to the Dockerfile. A new Tailscale or Tor version is tagged as
+`<tailscale>-tor<tor>`, published as `ghcr.io/eurocruz/torscale:<tag>` and
+`:latest` for `amd64` and gets a GitHub release. Go and Alpine updates only
+refresh `:latest`. The image is also rebuilt weekly to pick up other Alpine
+security updates.
 
 To update a running container, pull the new image and recreate it, or let
 [Watchtower](https://github.com/containrrr/watchtower) do it for you.

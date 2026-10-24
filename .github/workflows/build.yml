@@ -62,8 +62,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.version.outputs.tag }},enable=${{ steps.version.outputs.tag != '' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.tag }},enable=${{ steps.version.outputs.tag != '' }}
+            type=raw,value=${{ steps.version.outputs.tag }},enable=${{ steps.version.outputs.tag != '' }}
             type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
             type=sha
             type=ref,event=pr
@@ -90,11 +89,14 @@ jobs:
             echo "Release $TAG already exists"
             exit 0
           fi
+          ts="${TAG%%-tor*}"
+          tor="${TAG##*-tor}"
           gh release create "$TAG" --title "TorScale $TAG" --notes "$(cat <<EOF
-          Tailscale [$TAG](https://github.com/tailscale/tailscale/releases/tag/$TAG) + Tor.
+          - Tailscale [${ts}](https://github.com/tailscale/tailscale/releases/tag/${ts})
+          - Tor ${tor}
 
           \`\`\`
-          docker pull ${REGISTRY}/${IMAGE_NAME,,}:${TAG#v}
+          docker pull ${REGISTRY}/${IMAGE_NAME,,}:${TAG}
           \`\`\`
           EOF
           )"

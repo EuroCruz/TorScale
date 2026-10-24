@@ -6,7 +6,7 @@ RUN apk add --no-cache git
 # Let newer Tailscale releases pull the Go toolchain they require
 ENV GOTOOLCHAIN=auto CGO_ENABLED=0
 
-# Bumped automatically by .github/workflows/update.yml
+# Versions here are bumped automatically by .github/workflows/update.yml
 ARG TS_VERSION="v1.104.2"
 RUN git -c advice.detachedHead=false clone --depth 1 --branch "$TS_VERSION" \
       https://github.com/tailscale/tailscale.git /src
@@ -25,7 +25,8 @@ RUN TAGS="$(go run ./cmd/featuretags --min --add="$TS_FEATURES")" \
 
 FROM alpine:3.24.3
 
-RUN apk add --no-cache tor iptables ip6tables
+ARG TOR_VERSION="0.4.9.14-r0"
+RUN apk add --no-cache "tor=$TOR_VERSION" iptables ip6tables
 
 COPY --from=build /out/tailscaled /usr/local/bin/tailscaled
 RUN ln -s tailscaled /usr/local/bin/tailscale
