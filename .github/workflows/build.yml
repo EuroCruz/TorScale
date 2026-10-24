@@ -67,7 +67,25 @@ jobs:
             type=sha
             type=ref,event=pr
 
-      - name: Build and push Docker image
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          provenance: false
+          platforms: linux/amd64
+          load: true
+          tags: torscale:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify generated torrc
+        run: |
+          docker run --rm -e TOR_ExitNodes='{de},{nl}' -e TOR_StrictNodes=1 \
+            torscale:test verify-config
+          docker run --rm --sysctl net.ipv6.conf.all.disable_ipv6=0 \
+            torscale:test verify-config
+
+      - name: Push Docker image
         uses: docker/build-push-action@v7
         with:
           context: .

@@ -47,6 +47,7 @@ docker run -d \
   -v ./state/tailscale:/var/lib/tailscale -v ./state/tor:/var/lib/tor \
   --cap-add NET_ADMIN --device /dev/net/tun \
   --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv6.conf.all.forwarding=1 \
+  --sysctl net.ipv6.conf.all.disable_ipv6=0 \
   -p 41641:41641/udp \
   --restart unless-stopped \
   --name torscale ghcr.io/eurocruz/torscale:latest
@@ -113,7 +114,10 @@ rules depend on them.
 - iptables rules on `tailscale0`:
   - every TCP connection is redirected to Tor's `TransPort`;
   - DNS (UDP/TCP 53) is redirected to Tor's `DNSPort`;
-  - everything else (UDP, ICMP, IPv6) is dropped, and forwarding is disabled.
+  - everything else (UDP, ICMP) is dropped, and forwarding is disabled.
+- The same applies to IPv6, so IPv6-only sites work too. Docker disables IPv6
+  in containers by default, which is why `net.ipv6.conf.all.disable_ipv6=0` is
+  needed; without it IPv6 is rejected and clients fall back to IPv4.
 - `/etc/resolv.conf` points to Tor, so the DNS queries that Tailscale clients
   send to the exit node over PeerAPI (MagicDNS) are resolved through Tor too.
 - `.onion` names resolve to addresses in `10.192.0.0/10`, which are redirected
@@ -125,7 +129,9 @@ rules depend on them.
 
 - Only TCP and DNS go through Tor. UDP (QUIC, voice/video calls, games) and
   ping don't work. Browsers fall back from QUIC to TCP automatically.
-- IPv6 is not supported, it is rejected so clients fall back to IPv4.
+- Only some Tor exit relays support IPv6. With a narrow `ExitNodes` list and
+  `StrictNodes 1` there may be none, then IPv6 connections fail and clients fall
+  back to IPv4 after a delay.
 - Pluggable transports (obfs4, snowflake) are not included to keep the image
   small, only plain bridges work.
 - This is not Tor Browser. Your browser fingerprint, cookies and logins still
