@@ -7,7 +7,7 @@ RUN apk add --no-cache git
 ENV GOTOOLCHAIN=auto CGO_ENABLED=0
 
 # Versions here are bumped automatically by .github/workflows/update.yml
-ARG TS_VERSION="v1.104.2"
+ARG TS_VERSION="v1.104.4"
 RUN git -c advice.detachedHead=false clone --depth 1 --branch "$TS_VERSION" \
       https://github.com/tailscale/tailscale.git /src
 WORKDIR /src
