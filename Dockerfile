@@ -25,7 +25,7 @@ RUN TAGS="$(go run ./cmd/featuretags --min --add="$TS_FEATURES")" \
 
 FROM alpine:3.24.3
 
-ARG TOR_VERSION="0.4.9.14-r0"
+ARG TOR_VERSION="0.4.9.15-r0"
 RUN apk add --no-cache "tor=$TOR_VERSION" iptables ip6tables
 
 COPY --from=build /out/tailscaled /usr/local/bin/tailscaled
