@@ -23,7 +23,7 @@ RUN TAGS="$(go run ./cmd/featuretags --min --add="$TS_FEATURES")" \
     GOARCH="$TARGETARCH" GOARM="${TARGETVARIANT#v}" \
     ./build_dist.sh --strip -o /out/tailscaled ./cmd/tailscaled
 
-FROM alpine:3.24.3
+FROM alpine:3.24.4
 
 ARG TOR_VERSION="0.4.9.15-r0"
 RUN apk add --no-cache "tor=$TOR_VERSION" iptables ip6tables
