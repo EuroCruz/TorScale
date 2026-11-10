@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24 AS build
 
 RUN apk add --no-cache git
 # Let newer Tailscale releases pull the Go toolchain they require
